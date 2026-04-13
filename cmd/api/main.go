@@ -9,6 +9,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+/*Full purpose of this file
+
+This file does:
+
+1. Load config
+2. Connect to database
+3. Start web server*/
+
 func main() {
 	var cfg *config.Config
 	var err error

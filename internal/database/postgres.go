@@ -12,7 +12,7 @@ func Connect(databaseURL string) (*pgxpool.Pool, error) {
 
 	var config *pgxpool.Config
 	var err error
-	config, err = pgxpool.ParseConfig(databaseURL)
+	config, err = pgxpool.ParseConfig(databaseURL) //Parse database URL
 
 	if err != nil {
 		log.Printf("Unable to parse DATABASE_URL: %v", err)
@@ -20,7 +20,7 @@ func Connect(databaseURL string) (*pgxpool.Pool, error) {
 	}
 
 	var pool *pgxpool.Pool
-	pool, err = pgxpool.NewWithConfig(ctx, config)
+	pool, err = pgxpool.NewWithConfig(ctx, config) //Create connection pool
 
 	if err != nil {
 		log.Printf("Unable to create connection pool: %v", err)
@@ -38,3 +38,13 @@ func Connect(databaseURL string) (*pgxpool.Pool, error) {
 	log.Println("Successfully connected to PostgreSQL database")
 	return pool, nil
 }
+
+/*BIG PICTURE (simple flow)
+
+Your function does this:
+
+1. Read DB URL
+2. Convert to config
+3. Open connection pool
+4. Test connection (ping)
+5. Return usable DB connection"""*/
