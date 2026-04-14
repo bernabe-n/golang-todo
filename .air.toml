@@ -34,7 +34,7 @@ tmp_dir = "tmp"
   [build.windows]
     args_bin = []
     bin = "tmp\\main.exe"
-    cmd = "go build -o ./tmp/main.exe"
+    cmd = "go build -o ./tmp/main.exe ./cmd/api"
     entrypoint = ["tmp\\main.exe"]
     full_bin = ""
     post_cmd = []
