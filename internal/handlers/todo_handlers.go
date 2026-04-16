@@ -3,9 +3,11 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 	"todo_api/internal/repository"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -32,6 +34,46 @@ func CreatedTodoHandler(pool *pgxpool.Pool) gin.HandlerFunc { //gin.HandlerFunc 
 		}
 
 		c.JSON(http.StatusCreated, todo) //sends the todo back to the user
+	}
+}
+
+func GetAllTodosHandler(pool *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		todos, err := repository.GetAllTodos(pool)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, todos)
+	}
+}
+
+func GetTodoByIDHandler(pool *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		idstr := c.Param("id") //- Gets `"id"` from the URL, Example route:```go GET /todos/5
+
+		id, err := strconv.Atoi(idstr) // Converts string → integer
+
+		if err != nil { //- Checks if conversion failed
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo ID"})
+			return
+		}
+
+		todo, err := repository.GetTodoByID(pool, id) //Calls your repository function, Fetches todo from database
+
+		if err != nil { //- Checks if DB query failed
+			if err == pgx.ErrNoRows { //Special case: no record found, This means: “Query worked, but no matching ID exists”
+				c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
+				return
+			}
+
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}) //- Handles other errors (DB down, query issue, etc.)
+			return
+		}
+
+		c.JSON(http.StatusOK, todo)
 	}
 }
 
@@ -69,4 +111,15 @@ POST /todos happens
     │
     ▼
 Gin executes the returned function
+*/
+
+/*
+Simple flow of Get Single Todo:
+Get ID from URL
+Convert to int
+If invalid → 400
+Query DB
+If not found → 404
+If error → 500
+If success → 200 + data
 */

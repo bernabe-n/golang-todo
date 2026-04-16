@@ -48,6 +48,7 @@ func main() {
 
 	log.Println("=== REGISTERING TODOS ROUTE ===")
 	router.POST("/todos", handlers.CreatedTodoHandler(pool))
-
+	router.GET("/todos", handlers.GetAllTodosHandler(pool))
+	router.GET("/todos/:id", handlers.GetTodoByIDHandler(pool))
 	router.Run(":" + cfg.Port)
 }
