@@ -50,5 +50,6 @@ func main() {
 	router.POST("/todos", handlers.CreatedTodoHandler(pool))
 	router.GET("/todos", handlers.GetAllTodosHandler(pool))
 	router.GET("/todos/:id", handlers.GetTodoByIDHandler(pool))
+	router.PUT("/todos/:id", handlers.UpdateToDoHandler(pool))
 	router.Run(":" + cfg.Port)
 }

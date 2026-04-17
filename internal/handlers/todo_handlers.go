@@ -16,6 +16,14 @@ type CreateTodoInput struct { //This defines what the API expects from the clien
 	Completed bool   `json:"completed"`
 }
 
+type UpdateTodoInput struct {
+	Title *string `json:"title"`
+	//&true --> set completed as --> true
+	//&false --> set completed as --> false
+	//nil --> set completed as -> not provided
+	Completed *bool `json:"completed"`
+}
+
 func CreatedTodoHandler(pool *pgxpool.Pool) gin.HandlerFunc { //gin.HandlerFunc :reads request (c.ShouldBindJSON),processes logic,sends response (c.JSON)
 	return func(c *gin.Context) {
 		var input CreateTodoInput //Create empty struct to store incoming JSON
@@ -70,6 +78,61 @@ func GetTodoByIDHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 			}
 
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}) //- Handles other errors (DB down, query issue, etc.)
+			return
+		}
+
+		c.JSON(http.StatusOK, todo)
+	}
+}
+
+func UpdateToDoHandler(pool *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		idstr := c.Param("id")
+
+		id, err := strconv.Atoi(idstr)
+
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo ID"})
+		}
+
+		var input UpdateTodoInput
+
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if input.Title == nil && input.Completed == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "At least one field must be provided"})
+			return
+		}
+
+		existing, err := repository.GetTodoByID(pool, id)
+
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
+				return
+			}
+
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		title := existing.Title
+		if input.Title != nil {
+			title = *input.Title
+		}
+
+		completed := existing.Completed
+
+		if input.Completed != nil {
+			completed = *input.Completed
+		}
+
+		todo, err := repository.UpdateToDo(pool, id, title, completed)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
