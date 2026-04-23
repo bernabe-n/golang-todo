@@ -87,81 +87,84 @@ func GetTodoByIDHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 
 func UpdateToDoHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		idstr := c.Param("id")
+		idstr := c.Param("id") //Gets the id from the URL (e.g., /todos/5 → "5")
 
-		id, err := strconv.Atoi(idstr)
+		id, err := strconv.Atoi(idstr) //Converts the string ID to an integer
 
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo ID"})
-		}
-
-		var input UpdateTodoInput
-
-		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if input.Title == nil && input.Completed == nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "At least one field must be provided"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo ID"}) //If conversion fails (e.g., /todos/abc)
 			return
 		}
 
-		existing, err := repository.GetTodoByID(pool, id)
+		var input UpdateTodoInput //Declares a struct to hold incoming JSON data
+
+		if err := c.ShouldBindJSON(&input); err != nil { //Reads JSON body and maps it into input
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}) //If JSON is invalid → return 400 and stop execution
+			return
+		}
+		if input.Title == nil && input.Completed == nil { //Checks if both fields are missing
+			c.JSON(http.StatusBadRequest, gin.H{"error": "At least one field must be provided"}) //Returns error if no fields provided
+			return
+		}
+
+		existing, err := repository.GetTodoByID(pool, id) //Fetches the current todo from database
 
 		if err != nil {
-			if err == pgx.ErrNoRows {
-				c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
+			if err == pgx.ErrNoRows { //If no record found
+				c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"}) //Return 404 Not Found
 				return
 			}
 
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}) //Otherwise → server error (500)
 			return
 		}
 
-		title := existing.Title
+		title := existing.Title //Default: keep old title
 		if input.Title != nil {
-			title = *input.Title
+			title = *input.Title //If user provided a new title → use it, *input.Title dereferences pointer
 		}
 
-		completed := existing.Completed
+		completed := existing.Completed //Default: keep old status
 
 		if input.Completed != nil {
-			completed = *input.Completed
+			completed = *input.Completed //If user provided new value → update it
 		}
 
-		todo, err := repository.UpdateToDo(pool, id, title, completed)
+		todo, err := repository.UpdateToDo(pool, id, title, completed) //Calls repository function to update the record
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}) //If update fails → return 500
 			return
 		}
 
-		c.JSON(http.StatusOK, todo)
+		c.JSON(http.StatusOK, todo) //Sends updated todo back to client (200 OK)
 	}
 }
 
 func DeleteTodoHandler(pool *pgxpool.Pool) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		idStr := c.Param("id")
+	return func(c *gin.Context) { //Returns an anonymous function, c is the Gin context (handles request + response)
+		idStr := c.Param("id") //Gets the id from the URL, Example: /todos/10 → "10"
 
-		id, err := strconv.Atoi(idStr)
+		id, err := strconv.Atoi(idStr) //Converts idStr (string) into an integer
 
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo ID"}) //If conversion fails (e.g., /todos/abc), Sends 400 Bad Request
+			return
 		}
 
-		err = repository.DeleteTodo(pool, id)
+		err = repository.DeleteTodo(pool, id) //Calls your repository function to delete the todo from the database using the given id
 
-		if err != nil {
-			if err.Error() == "todo with id "+idStr+" not found" {
+		if err != nil { //Checks if something went wrong during deletion
+			if err.Error() == "todo with id "+idStr+" not found" { //Compares error message as a string, If it matches → means the todo doesn’t exist
 				c.JSON(http.StatusNotFound, gin.H{"error": "todo not found"})
 				return
 			}
 
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}) //Any other error → return 500 Internal Server Error
+			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Deleted Successfully"})
+		c.JSON(http.StatusOK, gin.H{"message": "Deleted Successfully"}) //If no errors → return 200 OK
 	}
 }
 
