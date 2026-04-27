@@ -1,0 +1,14 @@
+$kind: http-request
+name: User Register
+url: http:\\localhost:3000\auth\register
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"email\":\"ding@test.com\",\r
+
+    \    \"password\":\"password123\"\r
+
+    }"
+order: 1777266390189

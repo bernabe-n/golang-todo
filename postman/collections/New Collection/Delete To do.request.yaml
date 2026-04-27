@@ -1,5 +1,0 @@
-$kind: http-request
-name: Delete To do
-url: http:\\localhost:3000\todos\1
-method: DELETE
-order: 4171917383423281

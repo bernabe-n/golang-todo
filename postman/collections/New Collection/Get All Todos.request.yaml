@@ -1,5 +1,0 @@
-$kind: http-request
-name: Get All Todos
-url: http:\\localhost:3000\todos
-method: GET
-order: 3406430011010310

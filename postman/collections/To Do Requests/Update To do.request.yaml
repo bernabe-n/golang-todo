@@ -1,0 +1,14 @@
+$kind: http-request
+name: Update To do
+url: http:\\localhost:3000\todos\1
+method: GET
+body:
+  type: json
+  content: "{\r
+
+    \    \"title\":\"practice bass\",\r
+
+    \    \"completed\":true\r
+
+    }"
+order: 4133850728425048

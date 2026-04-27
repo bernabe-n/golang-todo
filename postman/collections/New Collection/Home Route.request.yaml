@@ -1,5 +1,0 @@
-$kind: http-request
-name: Home Route
-url: ""
-method: GET
-order: 1775723546295
