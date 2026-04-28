@@ -1,0 +1,5 @@
+$kind: http-request
+name: Protected-test
+url: ""
+method: GET
+order: 2538195984846760
