@@ -48,14 +48,19 @@ func main() {
 	})
 
 	log.Println("=== REGISTERING TODOS ROUTE ===")
-	router.POST("/todos", handlers.CreatedTodoHandler(pool))
-	router.GET("/todos", handlers.GetAllTodosHandler(pool))
-	router.GET("/todos/:id", handlers.GetTodoByIDHandler(pool))
-	router.PUT("/todos/:id", handlers.UpdateToDoHandler(pool))
-	router.DELETE("/todos/:id", handlers.DeleteTodoHandler(pool))
 
 	router.POST("/auth/register", handlers.CreateUserHandler(pool))
 	router.POST("/auth/login", handlers.LoginHandler(pool, cfg))
+
+	protected := router.Group("/todos")
+	protected.Use(middleware.AuthMiddleware(cfg))
+	{
+		protected.POST("", handlers.CreatedTodoHandler(pool))
+		protected.GET("", handlers.GetAllTodosHandler(pool))
+		protected.GET("/:id", handlers.GetTodoByIDHandler(pool))
+		protected.PUT("/:id", handlers.UpdateToDoHandler(pool))
+		protected.DELETE("/:id", handlers.DeleteTodoHandler(pool))
+	}
 
 	// Middleware test route
 	router.GET("/protected-test", middleware.AuthMiddleware(cfg), handlers.TestProtectedHandler())

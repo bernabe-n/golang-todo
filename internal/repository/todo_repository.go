@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func CreateTodo(pool *pgxpool.Pool, title string, completed bool) (*models.Todo, error) {
+func CreateTodo(pool *pgxpool.Pool, title string, completed bool, userID string) (*models.Todo, error) {
 	var ctx context.Context
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second) //Creates a new context with 5-second timeout, If DB takes too long → it cancels automatically
@@ -18,19 +18,20 @@ func CreateTodo(pool *pgxpool.Pool, title string, completed bool) (*models.Todo,
 	//schedule cancel to run when CreateTodo returns,for context resources to be released
 
 	var query string = `
-			INSERT INTO todos (title, completed)
-			VALUES ($1, $2)
-			RETURNING id, title, completed, created_at, updated_at
+			INSERT INTO todos (title, completed, user_id)
+			VALUES ($1, $2, $3)
+			RETURNING id, title, completed, created_at, updated_at, user_id
 	`
 
 	var todo models.Todo
 
-	var err error = pool.QueryRow(ctx, query, title, completed).Scan( //execute the query string, Scan --->return from postgres data and assign to todo struct
+	var err error = pool.QueryRow(ctx, query, title, completed, userID).Scan( //execute the query string, Scan --->return from postgres data and assign to todo struct
 		&todo.ID,
 		&todo.Title,
 		&todo.Completed,
 		&todo.CreatedAt,
 		&todo.UpdatedAt,
+		&todo.UserID,
 	)
 
 	if err != nil {
@@ -40,7 +41,7 @@ func CreateTodo(pool *pgxpool.Pool, title string, completed bool) (*models.Todo,
 	return &todo, nil
 }
 
-func GetAllTodos(pool *pgxpool.Pool) ([]models.Todo, error) { //accepts a database connection pool (used to query PostgreSQL)returns a slice (list) of Todo
+func GetAllTodos(pool *pgxpool.Pool, userID string) ([]models.Todo, error) { //accepts a database connection pool (used to query PostgreSQL)returns a slice (list) of Todo
 	var ctx context.Context       //→ context (used to control request lifetime)
 	var cancel context.CancelFunc //→ function to cancel the context
 
@@ -48,11 +49,12 @@ func GetAllTodos(pool *pgxpool.Pool) ([]models.Todo, error) { //accepts a databa
 	defer cancel()                                                         //Ensures cancel() runs when function finishes
 
 	var query string = `
-		SELECT id, title, completed, created_at, updated_at
+		SELECT id, title, completed, created_at, updated_at, user_id
 		FROM todos
+		WHERE user_id = $1
 		ORDER BY created_at DESC
 	`
-	var rows, err = pool.Query(ctx, query) //Executes SQL using: pool → database connection,ctx → with timeout
+	var rows, err = pool.Query(ctx, query, userID) //Executes SQL using: pool → database connection,ctx → with timeout
 
 	if err != nil {
 		return nil, err
@@ -71,6 +73,7 @@ func GetAllTodos(pool *pgxpool.Pool) ([]models.Todo, error) { //accepts a databa
 			&todo.Completed,
 			&todo.CreatedAt,
 			&todo.UpdatedAt,
+			&todo.UserID,
 		) //Copies column values into struct fields, Order must match SQL query
 
 		if err != nil {
@@ -87,26 +90,27 @@ func GetAllTodos(pool *pgxpool.Pool) ([]models.Todo, error) { //accepts a databa
 	return todos, nil
 }
 
-func GetTodoByID(pool *pgxpool.Pool, id int) (*models.Todo, error) { //*models.Todo` → pointer to a Todo (can be `nil`)
+func GetTodoByID(pool *pgxpool.Pool, id int, userID string) (*models.Todo, error) { //*models.Todo` → pointer to a Todo (can be `nil`)
 	var ctx context.Context
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var query string = `
-		SELECT id, title, completed, created_at, updated_at
+		SELECT id, title, completed, created_at, updated_at, user_id
 		FROM todos
-		WHERE id = $1
+		WHERE id = $1 AND user_id = $2
 	`
 
 	var todo models.Todo
 
-	var err error = pool.QueryRow(ctx, query, id).Scan(
+	var err error = pool.QueryRow(ctx, query, id, userID).Scan(
 		&todo.ID,
 		&todo.Title,
 		&todo.Completed,
 		&todo.CreatedAt,
 		&todo.UpdatedAt,
+		&todo.UserID,
 	)
 
 	if err != nil {
@@ -116,7 +120,7 @@ func GetTodoByID(pool *pgxpool.Pool, id int) (*models.Todo, error) { //*models.T
 	return &todo, nil
 }
 
-func UpdateToDo(pool *pgxpool.Pool, id int, title string, completed bool) (*models.Todo, error) {
+func UpdateToDo(pool *pgxpool.Pool, id int, title string, completed bool, userID string) (*models.Todo, error) {
 	var ctx context.Context
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
@@ -125,8 +129,8 @@ func UpdateToDo(pool *pgxpool.Pool, id int, title string, completed bool) (*mode
 	var query string = `
 		UPDATE todos
 		SET title = $1, completed = $2, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $3
-		RETURNING id, title, completed, created_at, updated_at
+		WHERE id = $3 AND user_id = $4
+		RETURNING id, title, completed, created_at, updated_at, user_id
 	`
 	var todo models.Todo
 
@@ -136,6 +140,7 @@ func UpdateToDo(pool *pgxpool.Pool, id int, title string, completed bool) (*mode
 		&todo.Completed,
 		&todo.CreatedAt,
 		&todo.UpdatedAt,
+		&todo.UserID,
 	)
 
 	if err != nil {
@@ -145,7 +150,7 @@ func UpdateToDo(pool *pgxpool.Pool, id int, title string, completed bool) (*mode
 	return &todo, nil
 }
 
-func DeleteTodo(pool *pgxpool.Pool, id int) error {
+func DeleteTodo(pool *pgxpool.Pool, id int, userID string) error {
 	var ctx context.Context
 	var cancel context.CancelFunc
 
@@ -154,10 +159,10 @@ func DeleteTodo(pool *pgxpool.Pool, id int) error {
 
 	var query string = `
 		DELETE from todos
-		WHERE id = $1
+		WHERE id = $1 AND user_id = $2
 	`
 
-	var commandTag, err = pool.Exec(ctx, query, id)
+	var commandTag, err = pool.Exec(ctx, query, id, userID)
 
 	if err != nil {
 		return err
